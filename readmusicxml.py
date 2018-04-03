@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Mar  7 15:57:49 2018
-
 @author: stanley
 """
 
 import xml.etree.cElementTree as ET
-tree = ET.ElementTree(file='Tempo_Loudness_Space/midi/05_violin.xml')
+tree = ET.ElementTree(file='C:/Users/stanley/Desktop/SCREAM Lab/np&pd/10violin/midi/02_violin.xml')
 #for elem in tree.iterfind('part/measure'):
 #    print (elem.tag, elem.attrib)
 duration_dict = {'quarter':1,
