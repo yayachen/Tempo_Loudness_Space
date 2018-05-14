@@ -135,15 +135,20 @@ def getEnvelope(inputSignal):
         outputSignal.append (maximum)
 
     return outputSignal
+
 v = []
 v = getEnvelope(waveData[:len(waveData)//4])
 #plt.plot(v)
 
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, lfilter , filtfilt
 b,a = butter(3,150/(44100/2),'low')
-v = lfilter(b,a,v)
-#plt.plot(v)
-#plt.show()
+#v = lfilter(b,a,v)
+plt.plot(waveData[:len(waveData)//4])
+v = filtfilt(b,a,v)
+plt.grid(True)
+plt.plot(v)
+plt.savefig('all.png',dpi =500)
+plt.show()
 
 
 for i in range(10):#len(onsets)):
