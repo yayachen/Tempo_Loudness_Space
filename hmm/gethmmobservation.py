@@ -11,14 +11,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from getEnvelope import getEnvelope
 from LinearRegressiontest import LR
+from getMFCC import getMFCC
 
 r_dir = r"C:\Users\stanley\Desktop\SCREAM Lab\np&pd\rwc_violin_mono&vibrato"
 
-vio_slope_2D = []
-vio_slope_list = []
+vio_mfcc_2D = []
+vib_mfcc_2D = []
 
-vib_slope_2D = []
-vib_slope_list = []
 
 for root, sub, files in os.walk(r_dir):
     files = sorted(files)
@@ -31,55 +30,21 @@ for root, sub, files in os.walk(r_dir):
         
         y, sr = librosa.load(root+"\\"+base)
         waveData = y*1.0/max(abs(y))
-        envData = getEnvelope(waveData)
+        note_mfcc = getMFCC(y,sr)
         
-        note_slope = LR(envData)
         if (base[0:3] == 'vio'):
-            vio_slope_2D.append(note_slope)
-            vio_slope_list += note_slope
+            vio_mfcc_2D.append(note_mfcc)
+            #vio_mfcc_list += note_mfcc
             
         if (base[0:3] == 'vib'):
-            vib_slope_2D.append(note_slope)
-            vib_slope_list += note_slope
-        #if not os.path.exists(dir):
-           #os.mkdir(base)        
-           
+            vib_mfcc_2D.append(note_mfcc)
+            #vib_mfcc_list += note_mfcc
+        
         print('-------------------------')
         
-np.save("vio_slope_2D.npy",vio_slope_2D)
-np.save("vio_slope_list.npy",vio_slope_list)
-np.save("vib_slope_2D.npy",vio_slope_2D)
-np.save("vib_slope_list.npy",vio_slope_list)
+np.save("vio_mfcc_2D.npy",vio_mfcc_2D)
+np.save("vib_mfcc_2D.npy",vib_mfcc_2D)
 
 
 
-"""
-import numpy as np
-from hmmlearn import hmm
 
-states = ["box 1", "box 2","box 3"]
-n_states = len(states)
-
-observations = ["red", "white","blue"]
-n_observations = len(observations)
-model2 = hmm.MultinomialHMM(n_components=n_states, n_iter=20, tol=0.01)
-X2 = np.array([[1],[0]])
-from sklearn.preprocessing import LabelEncoder
-#X2 = LabelEncoder().fit_transform(X2)
-model2.fit(X2)
-print (model2.startprob_)
-print (model2.transmat_)
-print (model2.emissionprob_)
-print (model2.score(X2))
-
-model2.fit(X2)
-print (model2.startprob_)
-print (model2.transmat_)
-print (model2.emissionprob_)
-print (model2.score(X2))
-model2.fit(X2)
-print (model2.startprob_)
-print (model2.transmat_)
-print (model2.emissionprob_)
-print (model2.score(X2))
-"""

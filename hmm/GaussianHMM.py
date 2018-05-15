@@ -1,110 +1,96 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue May  8 01:18:09 2018
+Created on Mon May 14 21:56:41 2018
 
 @author: stanley
 """
 
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Apr 24 01:27:30 2018
 
-@author: stanley
-"""
 
-def equal_width_into4(x):
-    #level_dict = {0:'significantly decrease',1:'slightly decrease',2:'slightly increase',3:"significantly increase"}
-    w = (max(x)-min(x))/4
-    temp = []
-    for i in range(len(x)):
-        cnt = 4
-        for n in range(1,5):
-            if x[i] <= min(x)+(n*w):
-                cnt -= 1
-        #temp.append(level_dict[cnt]) ## LOW,Medium,High
-        temp.append(cnt) ##0,1,2
-    return temp , [min(x),min(x)+w,min(x)+2*w,min(x)+3*w]
-
-def test(x):
-    temp = []
-    for i in x:
-        if i < -0.00005:
-            temp.append(0)
-        elif i < 0:
-            temp.append(1)
-        elif i < 0.00005:
-            temp.append(2)
-        else:
-            temp.append(3)
-    return temp
 
 
 
 import numpy as np
 from hmmlearn import hmm
 
-vio_slope_2D = np.load("vio_slope_2D.npy")
-vio_slope_list = list(np.load("vio_slope_list.npy"))
-vib_slope_2D = np.load("vib_slope_2D.npy")
-vib_slope_list = list(np.load("vib_slope_list.npy"))
+vio_mfcc_2D = np.load("vio_mfcc_2D.npy")
+vib_mfcc_2D = np.load("vib_mfcc_2D.npy")
 
-all_slope = vio_slope_list+vib_slope_list
-all_slope,b = equal_width_into4(all_slope)
-#all_slope = test(all_slope)
-all_slope = np.array(all_slope)
-n = 10
-all_slope = all_slope.reshape([len(all_slope)//n,n])
+##3D
+train = all_mfcc = np.row_stack((vio_mfcc_2D,vib_mfcc_2D)) 
+##2D
+if len(all_mfcc.shape) == 3:
+    nsamples, nx, ny = all_mfcc.shape
+    train = all_mfcc = all_mfcc.reshape((nsamples,nx*ny))
+
+## split train test
+from sklearn.model_selection import train_test_split
+train ,test = train_test_split(all_mfcc, test_size=0.01, random_state=42)
 
 
 
 states = ["normal", "vibrato"]
 n_states = len(states)
 
-observations = ["significantly decrease","slightly decrease","slightly increase","significantly increase"]
-n_observations = len(observations)
-model2 = hmm.MultinomialHMM(n_components=n_states, n_iter=50, tol=0.01)
-X2 = all_slope #np.array([[0,1,2,1],[3,0,0,1],[1,0,1,1]])
 
-"""
-model2.fit(X2)
-print (model2.startprob_)
-print (model2.transmat_)
-print (model2.emissionprob_)
-print (model2.score(X2))
-"""
+## Gaussian
+modelvio = hmm.GMMHMM(n_components= 10, n_iter=1000 , covariance_type="diag")#spherical")
+#X2 = train 
 
-max_score = -10000
-for i in range(10):
-    model2.fit(X2)
-    print (model2.score(X2))
-    if model2.score(X2) > max_score:
-        max_startprob_ = model2.startprob_
-        max_transmat_ = model2.transmat_
-        max_emissionprob_ = model2.emissionprob_
-        max_score = model2.score(X2)
 
-model2.startprob_ = max_startprob_
-model2.transmat_ = max_transmat_        
-model2.emissionprob_ = max_emissionprob_  
-#model2.score(X2) = max_score
+modelvio.fit(vio_mfcc_2D)
+hidden_states = modelvio.predict(vio_mfcc_2D)
 
-print (model2.startprob_)
-print (model2.transmat_)
-print (model2.emissionprob_)
-print (model2.score(X2))
+print (modelvio.score(vio_mfcc_2D))
 
-seen = np.array([all_slope[2]]).T
+print (modelvio.startprob_)
+print (modelvio.transmat_)
+#print (modelvio.means_)
+#print (modelvio.covars_)
+print(hidden_states)
+
+## vib
+
+modelvib = hmm.GMMHMM(n_components= 13, n_iter=1000 , covariance_type="diag")#spherical")
+#X2 = train 
+
+
+modelvib.fit(vib_mfcc_2D)
+hidden_states = modelvib.predict(vib_mfcc_2D)
+
+print (modelvib.score(vib_mfcc_2D))
+
+print (modelvib.startprob_)
+print (modelvib.transmat_)
+#print (modelvib.means_)
+#print (modelvib.covars_)
+print(hidden_states)
+
+'''
+seen = np.array([all_slope[2]])
 logprob, playingstyle = model2.decode(seen, algorithm="viterbi")
 print([ states[p] for p in playingstyle])
 
-seen = np.array([all_slope[362]]).T
+seen = np.array([all_slope[361]])
 logprob, playingstyle = model2.decode(seen, algorithm="viterbi")
 print([ states[p] for p in playingstyle])
-
+'''
 print ("==================================")
 
+vioout = []
+for i in range(len(vio_mfcc_2D)):
+    if modelvio.score(vio_mfcc_2D[i:i+1]) > modelvib.score(vio_mfcc_2D[i:i+1]):
+        vioout.append(0)
+    else:
+        vioout.append(1)
 
-            
+vibout = []
+for i in range(len(vio_mfcc_2D)):
+    if modelvib.score(vib_mfcc_2D[i:i+1]) > modelvio.score(vib_mfcc_2D[i:i+1]):
+        vibout.append(1)
+    else:
+        vibout.append(0)
+'''            
 import networkx as nx
 from pprint import pprint
 import pandas as pd
@@ -186,4 +172,4 @@ nx.draw_networkx_edge_labels(G , pos, edge_labels=emit_edge_labels,font_size = 6
 nx.drawing.nx_pydot.write_dot(G, 'pet_dog_hidden_markov.dot')
 plt.savefig("hmm.png",dpi = 1500) 
 plt.show()   
-
+'''
