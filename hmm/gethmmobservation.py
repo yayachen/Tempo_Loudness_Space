@@ -9,15 +9,16 @@ import os
 import librosa
 import numpy as np
 import matplotlib.pyplot as plt
-from getEnvelope import getEnvelope
-from LinearRegressiontest import LR
+#from getEnvelope import getEnvelope
+#from LinearRegressiontest import LR
 from getMFCC import getMFCC
 
 r_dir = r"C:\Users\stanley\Desktop\SCREAM Lab\np&pd\rwc_violin_mono&vibrato"
 
-vio_mfcc_2D = []
-vib_mfcc_2D = []
+vio_mfcc = []
+vib_mfcc = []
 
+playing_style_dict = {"vio":0,"vib":1}
 
 for root, sub, files in os.walk(r_dir):
     files = sorted(files)
@@ -32,18 +33,21 @@ for root, sub, files in os.walk(r_dir):
         waveData = y*1.0/max(abs(y))
         note_mfcc = getMFCC(y,sr)
         
+        ## add label at last element
+        note_mfcc = np.append(note_mfcc,playing_style_dict[base[0:3]])
+        
         if (base[0:3] == 'vio'):
-            vio_mfcc_2D.append(note_mfcc)
+            vio_mfcc.append(note_mfcc)
             #vio_mfcc_list += note_mfcc
             
         if (base[0:3] == 'vib'):
-            vib_mfcc_2D.append(note_mfcc)
+            vib_mfcc.append(note_mfcc)
             #vib_mfcc_list += note_mfcc
         
         print('-------------------------')
         
-np.save("vio_mfcc_2D.npy",vio_mfcc_2D)
-np.save("vib_mfcc_2D.npy",vib_mfcc_2D)
+np.save("vio_mfcc_"+str(len(vio_mfcc)//10)+"2D.npy",vio_mfcc)
+np.save("vib_mfcc_"+str(len(vib_mfcc)//10)+"2D.npy",vib_mfcc)
 
 
 

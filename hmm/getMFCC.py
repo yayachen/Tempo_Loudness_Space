@@ -25,8 +25,8 @@ if __name__== "__main__":
     import matplotlib.pyplot as plt
 
     r_dir = r"C:\Users\stanley\Desktop\SCREAM Lab\np&pd\rwc_violin_mono&vibrato"
-    #snd, sr = librosa.load(r_dir+"\\mono\\151\\vio151_03_3G_3A"+'.wav')
-    snd, sr = librosa.load(r_dir+"\\vibrato\\151\\vib151_61_5E_7C#"+'.wav')
+    snd, sr = librosa.load(r_dir+"\\mono\\151\\vio151_03_3G_3A"+'.wav')
+    #snd, sr = librosa.load(r_dir+"\\vibrato\\151\\vib151_61_5E_7C#"+'.wav')
     waveData = snd*1.0/max(abs(snd))
     plt.plot(waveData)
     plt.show()

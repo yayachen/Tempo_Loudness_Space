@@ -12,84 +12,114 @@ Created on Mon May 14 21:56:41 2018
 
 import numpy as np
 from hmmlearn import hmm
+from sklearn.model_selection import KFold 
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
 
-vio_mfcc_2D = np.load("vio_mfcc_2D.npy")
-vib_mfcc_2D = np.load("vib_mfcc_2D.npy")
+vio_mfcc = np.load("vio_mfcc_2D.npy")[:,:-1]
+vib_mfcc = np.load("vib_mfcc_2D.npy")[:,:-1]
 
+"""
 ##3D
-train = all_mfcc = np.row_stack((vio_mfcc_2D,vib_mfcc_2D)) 
+train = all_mfcc = np.row_stack((vio_mfcc,vib_mfcc)) 
 ##2D
 if len(all_mfcc.shape) == 3:
     nsamples, nx, ny = all_mfcc.shape
     train = all_mfcc = all_mfcc.reshape((nsamples,nx*ny))
+"""
 
 ## split train test
-from sklearn.model_selection import train_test_split
-train ,test = train_test_split(all_mfcc, test_size=0.01, random_state=42)
-
+#from sklearn.model_selection import train_test_split
+#train ,test = train_test_split(all_mfcc, test_size=0.01, random_state=42)
 
 
 states = ["normal", "vibrato"]
 n_states = len(states)
 
+n_ALL_accuracy = []
 
-## Gaussian
-modelvio = hmm.GMMHMM(n_components= 10, n_iter=1000 , covariance_type="diag")#spherical")
-#X2 = train 
+for j in range(3,34):
+    
+    ## Gaussian HMM model
+    ##### vio 
+    modelvio = hmm.GMMHMM(n_components= j, n_iter=1000 , covariance_type="diag")#spherical")
+    ##### vib
+    modelvib = hmm.GMMHMM(n_components= j, n_iter=1000 , covariance_type="diag")#spherical")
+    
+    for n in range(20):
+        testdata = []
+        conf = []
+        accuracy = []
+        
+        
+        #KFold  
+        k = 5 
+        kf = KFold(n_splits= k,shuffle=True) 
+        
+        kf_vio_train = []
+        kf_vio_test = []
+        for train_index , test_index in kf.split(vio_mfcc):  
+            kf_vio_train.append(train_index)
+            kf_vio_test.append(test_index)
+            
+        kf_vib_train = []
+        kf_vib_test = []
+        for train_index , test_index in kf.split(vib_mfcc):  
+            kf_vib_train.append(train_index)
+            kf_vib_test.append(test_index)
+            
 
+        for i in range(k):
+            
+            
+            ##### train 
+            modelvio.fit(vio_mfcc[kf_vio_train[i]])
+            modelvib.fit(vib_mfcc[kf_vib_train[i]])
+            
+    
+            #### merge testdata
+            testdata.append(np.concatenate((vio_mfcc[kf_vio_test[i]],vib_mfcc[kf_vib_test[i]]),axis=0))
+            
+            out = []
+            for v in testdata[i]:
+                if modelvio.score([v]) > modelvib.score([v]):
+                    out.append(0)
+                else:
+                    out.append(1)        
+                    
+            #confusion_matrix
+            ground_truth = [0]*len(kf_vio_test[i])+[1]*len(kf_vib_test[i])
+            conf.append(confusion_matrix(ground_truth , out, labels=[0, 1]))
+            #accuracy
+            accuracy.append(accuracy_score(ground_truth, out))
+            #print("kFold",i)
+            #print(conf[i],accuracy[i])
+            #imshow
+            #print ("==================================")
+            print(j,n,i)
+            
+        print("ALL , n_components = ",j)
+        print(sum(conf),np.mean(accuracy))
+        n_ALL_accuracy.append(np.mean(accuracy))
+        print ("==================================")
 
-modelvio.fit(vio_mfcc_2D)
-hidden_states = modelvio.predict(vio_mfcc_2D)
+    #print(n_ALL_accuracy)
+ALL_accuracy = [ np.mean(n_ALL_accuracy[i*20:(i+1)*20]) for i in range(len(n_ALL_accuracy)//20)]
+plt.plot(ALL_accuracy)
 
-print (modelvio.score(vio_mfcc_2D))
-
-print (modelvio.startprob_)
-print (modelvio.transmat_)
-#print (modelvio.means_)
-#print (modelvio.covars_)
-print(hidden_states)
-
-## vib
-
-modelvib = hmm.GMMHMM(n_components= 13, n_iter=1000 , covariance_type="diag")#spherical")
-#X2 = train 
-
-
-modelvib.fit(vib_mfcc_2D)
-hidden_states = modelvib.predict(vib_mfcc_2D)
-
-print (modelvib.score(vib_mfcc_2D))
-
-print (modelvib.startprob_)
-print (modelvib.transmat_)
+"""
+#hidden_states = modelvib.predict(vib_mfcc)
+#print (modelvib.score(vib_mfcc))
+#print (modelvib.startprob_)
+#print (modelvib.transmat_)
 #print (modelvib.means_)
 #print (modelvib.covars_)
-print(hidden_states)
+#print(hidden_states)
+"""
 
-'''
-seen = np.array([all_slope[2]])
-logprob, playingstyle = model2.decode(seen, algorithm="viterbi")
-print([ states[p] for p in playingstyle])
 
-seen = np.array([all_slope[361]])
-logprob, playingstyle = model2.decode(seen, algorithm="viterbi")
-print([ states[p] for p in playingstyle])
-'''
-print ("==================================")
 
-vioout = []
-for i in range(len(vio_mfcc_2D)):
-    if modelvio.score(vio_mfcc_2D[i:i+1]) > modelvib.score(vio_mfcc_2D[i:i+1]):
-        vioout.append(0)
-    else:
-        vioout.append(1)
-
-vibout = []
-for i in range(len(vio_mfcc_2D)):
-    if modelvib.score(vib_mfcc_2D[i:i+1]) > modelvio.score(vib_mfcc_2D[i:i+1]):
-        vibout.append(1)
-    else:
-        vibout.append(0)
 '''            
 import networkx as nx
 from pprint import pprint
