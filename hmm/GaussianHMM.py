@@ -16,6 +16,9 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
+from gethmmobservation import all_playing_style
+
+D = 13
 
 vio_mfcc = np.load("vio_mfcc_2D.npy")[:,:-1]
 vib_mfcc = np.load("vib_mfcc_2D.npy")[:,:-1]

@@ -6,9 +6,13 @@ Created on Mon May 14 22:20:00 2018
 """
 import librosa 
 import numpy as np
+#import scipy 
 
-def getMFCC(y , sr =44100):
-
+def getMFCC(wavpath):
+    
+    #sr, y = scipy.io.wavfile.read(wavpath)
+    y, sr = librosa.load(wavpath)
+    y = y*1.0/max(abs(y))
     mfccs  = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     #mean = np.array([np.mean(mfccs[i]) for i in range(len(mfccs))])
     #proportion = [ mean[i]/mean[0] for i in range(1,len(mean))]
