@@ -16,12 +16,17 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
-from gethmmobservation import all_playing_style
 
+all_playing_style = ['VNNO','VNNV','VNSP','VNTA']
+#all_playing_style = ['VNNO','VNNV']
+HMM_dict = {}
 D = 13
 
-vio_mfcc = np.load("vio_mfcc_2D.npy")[:,:-1]
-vib_mfcc = np.load("vib_mfcc_2D.npy")[:,:-1]
+for p in all_playing_style:
+    vars()[p] = np.load(p+str(D)+'D.npy')
+    
+#vio_mfcc = np.load("vio_mfcc_2D.npy")[:,:-1]
+#vib_mfcc = np.load("vib_mfcc_2D.npy")[:,:-1]
 
 """
 ##3D
@@ -42,15 +47,20 @@ n_states = len(states)
 
 n_ALL_accuracy = []
 
-for j in range(3,34):
+
+start,end = 2,4
+N = 2 #iterater for k
+for j in range(start,end):
     
     ## Gaussian HMM model
     ##### vio 
-    modelvio = hmm.GMMHMM(n_components= j, n_iter=1000 , covariance_type="diag")#spherical")
+    #modelvio = hmm.GMMHMM(n_components= j, n_iter=1000 , covariance_type="diag")#spherical")
     ##### vib
-    modelvib = hmm.GMMHMM(n_components= j, n_iter=1000 , covariance_type="diag")#spherical")
+    #modelvib = hmm.GMMHMM(n_components= j, n_iter=1000 , covariance_type="diag")#spherical")
+    for p in all_playing_style:
+        HMM_dict[p] = hmm.GMMHMM(n_components= j, n_iter=500 , covariance_type="diag")
     
-    for n in range(20):
+    for n in range(N):
         testdata = []
         conf = []
         accuracy = []
@@ -60,6 +70,16 @@ for j in range(3,34):
         k = 5 
         kf = KFold(n_splits= k,shuffle=True) 
         
+        train_dict = {}
+        test_dict = {}
+        
+        for p in all_playing_style:
+            train_dict[p] = []
+            test_dict[p] = []
+            for train_index , test_index in kf.split(vars()[p]):  
+                train_dict[p].append(train_index)
+                test_dict[p].append(test_index)
+        """        
         kf_vio_train = []
         kf_vio_test = []
         for train_index , test_index in kf.split(vio_mfcc):  
@@ -71,29 +91,44 @@ for j in range(3,34):
         for train_index , test_index in kf.split(vib_mfcc):  
             kf_vib_train.append(train_index)
             kf_vib_test.append(test_index)
-            
-
+        """    
+        
         for i in range(k):
             
             
             ##### train 
-            modelvio.fit(vio_mfcc[kf_vio_train[i]])
-            modelvib.fit(vib_mfcc[kf_vib_train[i]])
-            
+            #modelvio.fit(vio_mfcc[kf_vio_train[i]])
+            #modelvib.fit(vib_mfcc[kf_vib_train[i]])
+            testtemp = []
+            for p in all_playing_style:
+                HMM_dict[p].fit(vars()[p][train_dict[p][i]])
+                testtemp.append(vars()[p][test_dict[p][i]])
     
             #### merge testdata
-            testdata.append(np.concatenate((vio_mfcc[kf_vio_test[i]],vib_mfcc[kf_vib_test[i]]),axis=0))
+            #testdata.append(np.concatenate((vio_mfcc[kf_vio_test[i]],vib_mfcc[kf_vib_test[i]]),axis=0))
             
+            testdata.append(np.concatenate(testtemp,axis=0))
+                                            
             out = []
+            for v in testdata[i]:
+                scores = []
+                for p in all_playing_style:
+                    scores.append(HMM_dict[p].score([v]))
+                out.append(scores.index(max(scores)))
+                
+            """
             for v in testdata[i]:
                 if modelvio.score([v]) > modelvib.score([v]):
                     out.append(0)
                 else:
                     out.append(1)        
-                    
+            """
+            
             #confusion_matrix
-            ground_truth = [0]*len(kf_vio_test[i])+[1]*len(kf_vib_test[i])
-            conf.append(confusion_matrix(ground_truth , out, labels=[0, 1]))
+            ground_truth = sum([ [all_playing_style.index(p)]*len(test_dict[p][i]) 
+                                for p in all_playing_style],[])  ##2d to 1d
+            #ground_truth = [0]*len(kf_vio_test[i])+[1]*len(kf_vib_test[i])
+            conf.append(confusion_matrix(ground_truth , out))#, labels=[0, 1]))
             #accuracy
             accuracy.append(accuracy_score(ground_truth, out))
             #print("kFold",i)
@@ -108,8 +143,16 @@ for j in range(3,34):
         print ("==================================")
 
     #print(n_ALL_accuracy)
-ALL_accuracy = [ np.mean(n_ALL_accuracy[i*20:(i+1)*20]) for i in range(len(n_ALL_accuracy)//20)]
-plt.plot(ALL_accuracy)
+for i in range(len(n_ALL_accuracy)//N):
+    plt.plot(n_ALL_accuracy[i*N:(i+1)*N])
+    plt.savefig("saveplot\\"+str(i+start)+" components accuracy.png",dpi = 500)
+    plt.show()
+
+ALL_accuracy = [ np.mean(n_ALL_accuracy[i*N:(i+1)*N]) for i in range(len(n_ALL_accuracy)//N)]
+plt.plot(range(start,end),ALL_accuracy)
+plt.savefig("saveplot\\All components accuracy.png",dpi = 500)
+plt.show()
+
 
 """
 #hidden_states = modelvib.predict(vib_mfcc)
