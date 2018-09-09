@@ -6,27 +6,31 @@ Created on Mon May 14 21:56:41 2018
 """
 
 
-
-
-
-
 import numpy as np
 from hmmlearn import hmm
 from sklearn.model_selection import KFold 
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
+from sklearn import tree
+import graphviz
 
-all_playing_style = ['VNNO','VNNV','VNSP','VNTA']
+all_playing_style = ['VNNO','VNNV','VNSP','VNTA','VNPC','VNSO']
 #all_playing_style = ['VNNO','VNNV']
+
+
 HMM_dict = {}
 D = 13
-
+n = 10
 for p in all_playing_style:
-    vars()[p] = np.load(p+str(D)+'D.npy')
+    vars()[p] = np.load(p+str(D)+'D'+str(n)+"n"+'.npy')
+    #vars()[p] = np.load(p+'_cos.npy')*1000
     
-#vio_mfcc = np.load("vio_mfcc_2D.npy")[:,:-1]
-#vib_mfcc = np.load("vib_mfcc_2D.npy")[:,:-1]
+###
+VNNOV = np.concatenate((VNNO,VNNV))
+all_playing_style.pop(0)
+all_playing_style[0] ='VNNOV' 
+###    
 
 """
 ##3D
@@ -37,19 +41,14 @@ if len(all_mfcc.shape) == 3:
     train = all_mfcc = all_mfcc.reshape((nsamples,nx*ny))
 """
 
-## split train test
-#from sklearn.model_selection import train_test_split
-#train ,test = train_test_split(all_mfcc, test_size=0.01, random_state=42)
-
 
 states = ["normal", "vibrato"]
 n_states = len(states)
 
 n_ALL_accuracy = []
 
-
-start,end = 2,4
-N = 2 #iterater for k
+start,end = 12,13
+N = 5 #iterater for k
 for j in range(start,end):
     
     ## Gaussian HMM model
@@ -62,6 +61,7 @@ for j in range(start,end):
     
     for n in range(N):
         testdata = []
+        traindata = []
         conf = []
         accuracy = []
         
@@ -79,19 +79,7 @@ for j in range(start,end):
             for train_index , test_index in kf.split(vars()[p]):  
                 train_dict[p].append(train_index)
                 test_dict[p].append(test_index)
-        """        
-        kf_vio_train = []
-        kf_vio_test = []
-        for train_index , test_index in kf.split(vio_mfcc):  
-            kf_vio_train.append(train_index)
-            kf_vio_test.append(test_index)
-            
-        kf_vib_train = []
-        kf_vib_test = []
-        for train_index , test_index in kf.split(vib_mfcc):  
-            kf_vib_train.append(train_index)
-            kf_vib_test.append(test_index)
-        """    
+
         
         for i in range(k):
             
@@ -100,29 +88,81 @@ for j in range(start,end):
             #modelvio.fit(vio_mfcc[kf_vio_train[i]])
             #modelvib.fit(vib_mfcc[kf_vib_train[i]])
             testtemp = []
+            traintemp = []
             for p in all_playing_style:
                 HMM_dict[p].fit(vars()[p][train_dict[p][i]])
+                #print(p,HMM_dict[p].score(vars()[p][train_dict[p][i]]))
                 testtemp.append(vars()[p][test_dict[p][i]])
-    
+                traintemp.append(vars()[p][train_dict[p][i]])
+                
             #### merge testdata
             #testdata.append(np.concatenate((vio_mfcc[kf_vio_test[i]],vib_mfcc[kf_vib_test[i]]),axis=0))
             
+            """
+            #tree
+            traindata.append(np.concatenate(traintemp,axis=0))
+            ground_truth = sum([ [all_playing_style.index(p)]*len(train_dict[p][i]) 
+                                for p in all_playing_style],[])  ##2d to 1d
+            clf = tree.DecisionTreeClassifier()
+
+            out = []
+            for v in traindata[i]:
+                scores = []
+                for p in all_playing_style:
+                    while True:
+                        try:        
+                            scores.append(HMM_dict[p].score([v]))
+                            break
+                        except ValueError:
+                            HMM_dict[p].fit(vars()[p][train_dict[p][i]])
+                #print(scores)
+                out.append(scores)
+            clf = clf.fit(out,ground_truth)
+            dot_data = tree.export_graphviz(clf, out_file=None) 
+            graph = graphviz.Source(dot_data) 
+            graph.render("tree") 
+            dot_data = tree.export_graphviz(clf, out_file=None, 
+                         filled=True, rounded=True,  
+                         special_characters=True)  
+            graph = graphviz.Source(dot_data) 
+            #tree
+            
+            #tree test
             testdata.append(np.concatenate(testtemp,axis=0))
-                                            
+            
             out = []
             for v in testdata[i]:
                 scores = []
                 for p in all_playing_style:
-                    scores.append(HMM_dict[p].score([v]))
-                out.append(scores.index(max(scores)))
-                
+                    while True:
+                        try:        
+                            scores.append(HMM_dict[p].score([v]))
+                            break
+                        except ValueError:
+                            HMM_dict[p].fit(vars()[p][train_dict[p][i]])
+                #print(scores)
+                out.append(scores)
+            out = clf.predict(out)
+            #tree test
             """
+            
+            #max
+            
+            testdata.append(np.concatenate(testtemp,axis=0))
+            
+            out = []
             for v in testdata[i]:
-                if modelvio.score([v]) > modelvib.score([v]):
-                    out.append(0)
-                else:
-                    out.append(1)        
-            """
+                scores = []
+                for p in all_playing_style:
+                    while True:
+                        try:        
+                            scores.append(HMM_dict[p].score([v]))
+                            break
+                        except ValueError:
+                            HMM_dict[p].fit(vars()[p][train_dict[p][i]])
+                #print(scores)
+                out.append(scores.index(max(scores)))
+             
             
             #confusion_matrix
             ground_truth = sum([ [all_playing_style.index(p)]*len(test_dict[p][i]) 
@@ -136,17 +176,21 @@ for j in range(start,end):
             #imshow
             #print ("==================================")
             print(j,n,i)
-            
+           
         print("ALL , n_components = ",j)
         print(sum(conf),np.mean(accuracy))
         n_ALL_accuracy.append(np.mean(accuracy))
         print ("==================================")
-
+    plt.plot(n_ALL_accuracy[(j-start)*N:(j-start+1)*N])
+    plt.savefig("saveplot\\"+str(j)+" components accuracy.png",dpi = 500)
+    plt.show()
     #print(n_ALL_accuracy)
+"""
 for i in range(len(n_ALL_accuracy)//N):
     plt.plot(n_ALL_accuracy[i*N:(i+1)*N])
     plt.savefig("saveplot\\"+str(i+start)+" components accuracy.png",dpi = 500)
     plt.show()
+"""
 
 ALL_accuracy = [ np.mean(n_ALL_accuracy[i*N:(i+1)*N]) for i in range(len(n_ALL_accuracy)//N)]
 plt.plot(range(start,end),ALL_accuracy)

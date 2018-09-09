@@ -14,16 +14,16 @@ from getMFCC import getMFCC
 
 #r_dir = r"C:\Users\stanley\Desktop\SCREAM Lab\np&pd\rwc_violin_mono&vibrato"
 r_dir = r"C:\Users\stanley\Desktop\SCREAM Lab\np&pd\RWC"
-all_playing_style = ['VNNO','VNNV','VNSP','VNTA']
-#all_playing_style = ['VNNO','VNNV']
-#acronym#full
+all_playing_style = ['VNNO','VNNV','VNSP','VNTA','VNPC','VNSO']#['VNNO','VNNV','VNSP','VNTA','VNPC']
+n_mfcc = 13
+n = 10
+
 vio_mfcc = []
 vib_mfcc = []
 
 for p in all_playing_style:   #string to variable
     vars()[p] = []
 
-#playing_style_dict = {"vio":0,"vib":1}
 
 for root, sub, files in os.walk(r_dir):
     files = sorted(files)
@@ -39,7 +39,7 @@ for root, sub, files in os.walk(r_dir):
         wavpath = root+"\\"+base
         print (wavpath)
         
-        note_mfcc = getMFCC(wavpath)
+        note_mfcc = getMFCC(wavpath,n_mfcc=n_mfcc,n=n)
         
         vars()[base[3:7]].append(note_mfcc)
         
@@ -62,5 +62,5 @@ for root, sub, files in os.walk(r_dir):
         print('-------------------------')
 
 for p in all_playing_style:
-    np.save(str(p)+str(len(vars()[p][0])//10)+"D.npy",vars()[p])
-
+    np.save(str(p)+str(n_mfcc)+"D"+str(n)+"n"+".npy",vars()[p])
+    #np.save(str(p)+"_cos.npy",vars()[p])
